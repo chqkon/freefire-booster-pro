@@ -267,6 +267,8 @@ private fun BoostButton(enabled: Boolean, onClick: () -> Unit) {
 @Composable
 private fun BoosterCard(content: @Composable () -> Unit) {
     Card(colors = CardDefaults.cardColors(containerColor = Surface), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = content)
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            content()
+        }
     }
 }
