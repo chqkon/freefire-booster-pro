@@ -1,0 +1,23 @@
+FREEFIRE BOOSTER PRO - PROYECTO CORREGIDO
+
+IMPORTANTE:
+Este proyecto requiere JDK 17 o superior. El error "This build uses a Java 8 JVM" significa que la aplicación de compilación está usando Java 8.
+
+En la aplicación IDE selecciona:
+Settings > Build & Run > Gradle JDK > JDK 17
+
+Comprueba en la terminal:
+java -version
+
+Debe mostrar openjdk version "17" o superior.
+
+Después, desde esta carpeta, ejecuta:
+
+chmod +x ./gradlew
+./gradlew --stop
+./gradlew clean assembleDebug
+
+APK generada:
+app/build/outputs/apk/debug/app-debug.apk
+
+La carpeta correcta es la que contiene directamente gradlew, settings.gradle.kts y app/.
