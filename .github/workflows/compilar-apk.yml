@@ -31,8 +31,9 @@ jobs:
 
       - name: Instalar componentes Android
         run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
           sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-          yes | sdkmanager --licenses > /dev/null || true
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
       - name: Preparar Gradle
         run: chmod +x ./gradlew
