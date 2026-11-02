@@ -34,7 +34,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun applyDpi() {
-        runOperation { optimizer.applyDensity(_uiState.value.dpi.toInt()) }
+        runOperation(operation = { optimizer.applyDensity(_uiState.value.dpi.toInt()) })
     }
 
     fun setAnimations(instant: Boolean) {
@@ -45,15 +45,18 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             return
         }
 
-        runOperation { optimizer.setAnimationScales(instant) } { result ->
-            if (result is OptimizerResult.Success) {
-                _uiState.value = _uiState.value.copy(instantAnimations = instant)
+        runOperation(
+            operation = { optimizer.setAnimationScales(instant) },
+            onSuccess = { result ->
+                if (result is OptimizerResult.Success) {
+                    _uiState.value = _uiState.value.copy(instantAnimations = instant)
+                }
             }
-        }
+        )
     }
 
     fun requestMemoryTrim() {
-        runOperation { optimizer.requestMemoryTrim() }
+        runOperation(operation = { optimizer.requestMemoryTrim() })
     }
 
     private fun runOperation(
