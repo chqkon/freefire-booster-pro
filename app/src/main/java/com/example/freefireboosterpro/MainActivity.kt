@@ -1,6 +1,9 @@
 package com.example.freefireboosterpro
 
+import android.content.Intent
 import android.os.Bundle
+import android.net.Uri
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
@@ -23,7 +26,9 @@ class MainActivity : ComponentActivity() {
                     onRefreshPermission = viewModel::refreshPermission,
                     onApplyDpi = viewModel::applyDpi,
                     onAnimationsChanged = viewModel::setAnimations,
-                    onBoost = viewModel::requestMemoryTrim
+                    onBoost = viewModel::requestMemoryTrim,
+                    onToggleOverlay = viewModel::toggleOverlay,
+                    onOpenOverlayPermission = ::openOverlayPermission
                 )
             }
         }
@@ -33,5 +38,14 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // El usuario puede volver de Ajustes/ADB con el permiso recién concedido.
         viewModel.refreshPermission()
+    }
+
+    private fun openOverlayPermission() {
+        startActivity(
+            Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+        )
     }
 }

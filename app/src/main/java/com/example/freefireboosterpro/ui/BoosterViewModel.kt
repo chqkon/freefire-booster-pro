@@ -1,24 +1,31 @@
 package com.example.freefireboosterpro.ui
 
 import android.app.Application
+import android.content.Intent
+import android.provider.Settings
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.freefireboosterpro.data.OptimizerResult
 import com.example.freefireboosterpro.data.SystemOptimizer
+import com.example.freefireboosterpro.overlay.FpsOverlayService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
- data class BoosterUiState(
+data class BoosterUiState(
     val dpi: Float = 420f,
     val instantAnimations: Boolean = false,
     val secureSettingsGranted: Boolean = false,
+    val overlayPermissionGranted: Boolean = false,
+    val overlayRunning: Boolean = false,
     val isBusy: Boolean = false,
     val status: String = "Listo para optimizar"
 )
 
 class BoosterViewModel(application: Application) : AndroidViewModel(application) {
+    private val app = application
     private val optimizer = SystemOptimizer(application)
     private val _uiState = MutableStateFlow(BoosterUiState())
     val uiState: StateFlow<BoosterUiState> = _uiState.asStateFlow()
@@ -29,7 +36,9 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     fun refreshPermission() {
         _uiState.value = _uiState.value.copy(
-            secureSettingsGranted = optimizer.hasWriteSecureSettings()
+            secureSettingsGranted = optimizer.hasWriteSecureSettings(),
+            overlayPermissionGranted = Settings.canDrawOverlays(app),
+            overlayRunning = FpsOverlayService.isRunning()
         )
     }
 
@@ -57,6 +66,27 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     fun requestMemoryTrim() {
         runOperation(operation = { optimizer.requestMemoryTrim() })
+    }
+
+    fun toggleOverlay() {
+        if (!Settings.canDrawOverlays(app)) {
+            _uiState.value = _uiState.value.copy(
+                overlayPermissionGranted = false,
+                status = "Concede el permiso de ventana flotante para activar el HUD"
+            )
+            return
+        }
+
+        if (FpsOverlayService.isRunning()) {
+            app.stopService(Intent(app, FpsOverlayService::class.java))
+            _uiState.value = _uiState.value.copy(overlayRunning = false, status = "HUD detenido")
+        } else {
+            ContextCompat.startForegroundService(
+                app,
+                Intent(app, FpsOverlayService::class.java)
+            )
+            _uiState.value = _uiState.value.copy(overlayRunning = true, status = "HUD activo sobre tus juegos")
+        }
     }
 
     private fun runOperation(

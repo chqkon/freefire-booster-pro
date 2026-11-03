@@ -54,7 +54,9 @@ fun BoosterScreen(
     onRefreshPermission: () -> Unit,
     onApplyDpi: () -> Unit,
     onAnimationsChanged: (Boolean) -> Unit,
-    onBoost: () -> Unit
+    onBoost: () -> Unit,
+    onToggleOverlay: () -> Unit,
+    onOpenOverlayPermission: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Black).padding(16.dp),
@@ -68,6 +70,15 @@ fun BoosterScreen(
             PermissionCard(
                 granted = state.secureSettingsGranted,
                 onRefresh = onRefreshPermission
+            )
+        }
+        item {
+            HudCard(
+                overlayPermissionGranted = state.overlayPermissionGranted,
+                running = state.overlayRunning,
+                enabled = !state.isBusy,
+                onToggle = onToggleOverlay,
+                onOpenPermission = onOpenOverlayPermission
             )
         }
         item {
@@ -96,6 +107,42 @@ fun BoosterScreen(
                 color = Color.Gray,
                 fontSize = 12.sp
             )
+        }
+    }
+}
+
+@Composable
+private fun HudCard(
+    overlayPermissionGranted: Boolean,
+    running: Boolean,
+    enabled: Boolean,
+    onToggle: () -> Unit,
+    onOpenPermission: () -> Unit
+) {
+    BoosterCard {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("HUD DE RENDIMIENTO", color = Cyan, fontWeight = FontWeight.Bold)
+                Text(
+                    when {
+                        running -> "FPS · batería · RAM en tiempo real"
+                        !overlayPermissionGranted -> "Necesita permiso de ventana flotante"
+                        else -> "HUD apagado"
+                    },
+                    color = if (running) Cyan else Color.LightGray,
+                    fontSize = 13.sp
+                )
+            }
+            Switch(checked = running, onCheckedChange = { onToggle() }, enabled = enabled && overlayPermissionGranted)
+        }
+        if (!overlayPermissionGranted) {
+            TextButton(onClick = onOpenPermission) {
+                Text("Conceder permiso de overlay")
+            }
         }
     }
 }
