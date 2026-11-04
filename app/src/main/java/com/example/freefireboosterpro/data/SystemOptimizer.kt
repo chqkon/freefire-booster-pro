@@ -87,7 +87,7 @@ class SystemOptimizer(context: Context) {
     }
 
     private suspend fun runShizukuCommand(vararg command: String): CommandResult {
-        val result = ShizukuCommandRunner.execute(command)
+        val result = ShizukuCommandRunner.execute(arrayOf(*command))
         return CommandResult(result.exitCode, result.output)
     }
 

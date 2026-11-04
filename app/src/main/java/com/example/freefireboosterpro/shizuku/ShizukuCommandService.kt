@@ -1,18 +1,13 @@
 package com.example.freefireboosterpro.shizuku
 
-import android.content.Context
 import androidx.annotation.Keep
+import com.example.freefireboosterpro.shizuku.IShizukuCommandService
 
 /**
  * Vive en el proceso autorizado por Shizuku. No se expone como un Service Android
  * normal; Shizuku crea esta clase mediante UserService.
  */
-class ShizukuCommandService : IShizukuCommandService.Stub() {
-    @Keep
-    constructor()
-
-    @Keep
-    constructor(@Suppress("UNUSED_PARAMETER") context: Context)
+class ShizukuCommandService() : IShizukuCommandService.Stub() {
 
     override fun execute(command: Array<String>): String {
         return try {

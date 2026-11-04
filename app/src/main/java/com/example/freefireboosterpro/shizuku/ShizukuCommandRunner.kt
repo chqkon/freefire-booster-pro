@@ -5,6 +5,7 @@ import android.content.ServiceConnection
 import android.os.IBinder
 import android.os.RemoteException
 import com.example.freefireboosterpro.BuildConfig
+import com.example.freefireboosterpro.shizuku.IShizukuCommandService
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
