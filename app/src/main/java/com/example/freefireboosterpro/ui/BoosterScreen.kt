@@ -1,6 +1,7 @@
 package com.example.freefireboosterpro.ui
 
 import com.example.freefireboosterpro.shizuku.ShizukuStatus
+import com.example.freefireboosterpro.overlay.OverlayConfig
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -53,11 +54,15 @@ fun BoosterScreen(
     state: BoosterUiState,
     onDpiChanged: (Float) -> Unit,
     onRefreshPermission: () -> Unit,
+    onOpenDeveloperOptions: () -> Unit,
     onApplyDpi: () -> Unit,
     onAnimationsChanged: (Boolean) -> Unit,
     onBoost: () -> Unit,
     onToggleOverlay: () -> Unit,
     onOpenOverlayPermission: () -> Unit,
+    onHudOpacityChanged: (Float) -> Unit,
+    onHudScaleChanged: (Float) -> Unit,
+    onHudMetricChanged: (String, Boolean) -> Unit,
     onRequestShizuku: () -> Unit,
     onRefreshShizuku: () -> Unit
 ) {
@@ -79,8 +84,10 @@ fun BoosterScreen(
         }
         item {
             PermissionCard(
-                granted = state.secureSettingsGranted,
-                onRefresh = onRefreshPermission
+                secureGranted = state.secureSettingsGranted,
+                shizukuGranted = state.shizuku.permissionGranted,
+                onRefresh = onRefreshPermission,
+                onOpenDeveloperOptions = onOpenDeveloperOptions
             )
         }
         item {
@@ -90,6 +97,15 @@ fun BoosterScreen(
                 enabled = !state.isBusy,
                 onToggle = onToggleOverlay,
                 onOpenPermission = onOpenOverlayPermission
+            )
+        }
+        item {
+            HudSettingsCard(
+                config = state.overlayConfig,
+                enabled = !state.isBusy,
+                onOpacityChanged = onHudOpacityChanged,
+                onScaleChanged = onHudScaleChanged,
+                onMetricChanged = onHudMetricChanged
             )
         }
         item {
@@ -110,7 +126,7 @@ fun BoosterScreen(
         }
         item {
             AnimationToggleCard(
-                enabled = state.secureSettingsGranted && !state.isBusy,
+                enabled = (state.secureSettingsGranted || state.shizuku.permissionGranted) && !state.isBusy,
                 instant = state.instantAnimations,
                 onToggle = onAnimationsChanged
             )
@@ -191,22 +207,71 @@ private fun HudCard(
 }
 
 @Composable
-private fun PermissionCard(granted: Boolean, onRefresh: () -> Unit) {
+private fun HudSettingsCard(
+    config: OverlayConfig,
+    enabled: Boolean,
+    onOpacityChanged: (Float) -> Unit,
+    onScaleChanged: (Float) -> Unit,
+    onMetricChanged: (String, Boolean) -> Unit
+) {
     BoosterCard {
-        Text("PERMISO ADB", color = Cyan, fontWeight = FontWeight.Bold)
-        Text(
-            if (granted) "WRITE_SECURE_SETTINGS concedido" else "Se necesita autorización ADB",
-            color = if (granted) Cyan else Crimson
+        Text("PERSONALIZAR HUD", color = Cyan, fontWeight = FontWeight.Bold)
+        Text("Opacidad ${(config.opacity * 100).toInt()}%", color = Color.White)
+        Slider(
+            value = config.opacity,
+            onValueChange = onOpacityChanged,
+            valueRange = 0.35f..1f,
+            enabled = enabled,
+            colors = SliderDefaults.colors(thumbColor = Crimson, activeTrackColor = Crimson)
         )
-        if (!granted) {
+        Text("Tamaño ${(config.scale * 100).toInt()}%", color = Color.White)
+        Slider(
+            value = config.scale,
+            onValueChange = onScaleChanged,
+            valueRange = 0.75f..1.5f,
+            enabled = enabled,
+            colors = SliderDefaults.colors(thumbColor = Cyan, activeTrackColor = Cyan)
+        )
+        HudMetricToggle("FPS", config.showFps, enabled) { onMetricChanged("fps", it) }
+        HudMetricToggle("Temperatura", config.showTemperature, enabled) { onMetricChanged("temperature", it) }
+        HudMetricToggle("RAM libre", config.showMemory, enabled) { onMetricChanged("memory", it) }
+    }
+}
+
+@Composable
+private fun HudMetricToggle(label: String, checked: Boolean, enabled: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = Color.LightGray)
+        Switch(checked = checked, onCheckedChange = onChange, enabled = enabled)
+    }
+}
+
+@Composable
+private fun PermissionCard(
+    secureGranted: Boolean,
+    shizukuGranted: Boolean,
+    onRefresh: () -> Unit,
+    onOpenDeveloperOptions: () -> Unit
+) {
+    BoosterCard {
+        Text("PERMISOS DEL SISTEMA", color = Cyan, fontWeight = FontWeight.Bold)
+        Text(
+            when {
+                shizukuGranted -> "Shizuku autorizado · sin computadora"
+                secureGranted -> "WRITE_SECURE_SETTINGS concedido"
+                else -> "Vincula Shizuku para habilitar las funciones avanzadas"
+            },
+            color = if (shizukuGranted || secureGranted) Cyan else Crimson
+        )
+        if (!secureGranted && !shizukuGranted) {
             Spacer(Modifier.height(6.dp))
-            Text("Ejecuta en un PC o shell ADB autorizado:", color = Color.LightGray)
-            Text(
-                "adb shell pm grant com.example.freefireboosterpro android.permission.WRITE_SECURE_SETTINGS",
-                color = Color.White,
-                fontSize = 12.sp
-            )
+            Text("La vinculación Shizuku mediante depuración inalámbrica sustituye el ADB tradicional.", color = Color.LightGray)
         }
+        TextButton(onClick = onOpenDeveloperOptions) { Text("Abrir opciones de desarrollador") }
         TextButton(onClick = onRefresh) { Text("Comprobar de nuevo") }
     }
 }

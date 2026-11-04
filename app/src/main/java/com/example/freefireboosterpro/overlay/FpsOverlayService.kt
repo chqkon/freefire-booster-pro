@@ -51,7 +51,7 @@ class FpsOverlayService : Service() {
             frameCount = 0
             lastSampleMs = now
             batteryTempC = readBatteryTemperature()
-            hudView.update(fps, batteryTempC, availableMemoryMb())
+            hudView.update(fps, batteryTempC, availableMemoryMb(), OverlayPreferences.read(this@FpsOverlayService))
             handler.postDelayed(this, TELEMETRY_INTERVAL_MS)
         }
     }
@@ -182,6 +182,7 @@ class FpsOverlayService : Service() {
         private var fps = 0
         private var temp = 0f
         private var memory = 0L
+        private var config = OverlayConfig()
         private var downX = 0f
         private var downY = 0f
         private var initialX = 0
@@ -192,10 +193,14 @@ class FpsOverlayService : Service() {
             setBackgroundColor(Color.TRANSPARENT)
         }
 
-        fun update(fps: Int, temperature: Float, availableMemory: Long) {
+        fun update(fps: Int, temperature: Float, availableMemory: Long, config: OverlayConfig) {
             this.fps = fps
             temp = temperature
             memory = availableMemory
+            this.config = config
+            alpha = config.opacity
+            scaleX = config.scale
+            scaleY = config.scale
             postInvalidate()
         }
 
@@ -209,12 +214,18 @@ class FpsOverlayService : Service() {
             canvas.drawRoundRect(rect, dp(12).toFloat(), dp(12).toFloat(), backgroundPaint)
             canvas.drawRoundRect(0f, 0f, dp(5).toFloat(), height.toFloat(), dp(12).toFloat(), dp(12).toFloat(), accentPaint)
             canvas.drawText("FREEFIRE BOOSTER  //  LIVE", dp(14).toFloat(), dp(21).toFloat(), titlePaint)
-            canvas.drawText("FPS", dp(14).toFloat(), dp(42).toFloat(), labelPaint)
-            canvas.drawText(if (fps > 0) fps.toString() else "--", dp(14).toFloat(), dp(67).toFloat(), valuePaint)
-            canvas.drawText("BAT", dp(86).toFloat(), dp(42).toFloat(), labelPaint)
-            canvas.drawText(if (temp > 0f) "%.1f°".format(temp) else "--", dp(86).toFloat(), dp(67).toFloat(), valuePaint)
-            canvas.drawText("RAM LIBRE", dp(155).toFloat(), dp(42).toFloat(), labelPaint)
-            canvas.drawText("${memory}M", dp(155).toFloat(), dp(67).toFloat(), valuePaint)
+            if (config.showFps) {
+                canvas.drawText("FPS", dp(14).toFloat(), dp(42).toFloat(), labelPaint)
+                canvas.drawText(if (fps > 0) fps.toString() else "--", dp(14).toFloat(), dp(67).toFloat(), valuePaint)
+            }
+            if (config.showTemperature) {
+                canvas.drawText("BAT", dp(86).toFloat(), dp(42).toFloat(), labelPaint)
+                canvas.drawText(if (temp > 0f) "%.1f°".format(temp) else "--", dp(86).toFloat(), dp(67).toFloat(), valuePaint)
+            }
+            if (config.showMemory) {
+                canvas.drawText("RAM LIBRE", dp(155).toFloat(), dp(42).toFloat(), labelPaint)
+                canvas.drawText("${memory}M", dp(155).toFloat(), dp(67).toFloat(), valuePaint)
+            }
         }
 
         override fun onTouchEvent(event: MotionEvent): Boolean {

@@ -30,11 +30,21 @@ class MainActivity : ComponentActivity() {
                     state = state.value,
                     onDpiChanged = viewModel::setDpi,
                     onRefreshPermission = viewModel::refreshPermission,
+                    onOpenDeveloperOptions = ::openDeveloperOptions,
                     onApplyDpi = viewModel::applyDpi,
                     onAnimationsChanged = viewModel::setAnimations,
                     onBoost = viewModel::requestMemoryTrim,
                     onToggleOverlay = viewModel::toggleOverlay,
                     onOpenOverlayPermission = ::openOverlayPermission,
+                    onHudOpacityChanged = viewModel::setHudOpacity,
+                    onHudScaleChanged = viewModel::setHudScale,
+                    onHudMetricChanged = { metric, enabled ->
+                        when (metric) {
+                            "fps" -> viewModel.setHudMetrics(showFps = enabled)
+                            "temperature" -> viewModel.setHudMetrics(showTemperature = enabled)
+                            "memory" -> viewModel.setHudMetrics(showMemory = enabled)
+                        }
+                    },
                     onRequestShizuku = viewModel::requestShizukuPermission,
                     onRefreshShizuku = viewModel::refreshShizuku
                 )
@@ -60,5 +70,9 @@ class MainActivity : ComponentActivity() {
                 Uri.parse("package:$packageName")
             )
         )
+    }
+
+    private fun openDeveloperOptions() {
+        startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
     }
 }

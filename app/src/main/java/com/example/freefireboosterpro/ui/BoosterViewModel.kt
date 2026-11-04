@@ -9,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.freefireboosterpro.data.OptimizerResult
 import com.example.freefireboosterpro.data.SystemOptimizer
 import com.example.freefireboosterpro.overlay.FpsOverlayService
+import com.example.freefireboosterpro.overlay.OverlayConfig
+import com.example.freefireboosterpro.overlay.OverlayPreferences
 import com.example.freefireboosterpro.shizuku.ShizukuAccess
 import com.example.freefireboosterpro.shizuku.ShizukuStatus
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +24,7 @@ data class BoosterUiState(
     val secureSettingsGranted: Boolean = false,
     val overlayPermissionGranted: Boolean = false,
     val overlayRunning: Boolean = false,
+    val overlayConfig: OverlayConfig = OverlayConfig(),
     val shizuku: ShizukuStatus = ShizukuStatus(),
     val isBusy: Boolean = false,
     val status: String = "Listo para optimizar"
@@ -42,12 +45,38 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             secureSettingsGranted = optimizer.hasWriteSecureSettings(),
             overlayPermissionGranted = Settings.canDrawOverlays(app),
             overlayRunning = FpsOverlayService.isRunning(),
+            overlayConfig = OverlayPreferences.read(app),
             shizuku = ShizukuAccess.status()
         )
     }
 
     fun refreshShizuku() {
         _uiState.value = _uiState.value.copy(shizuku = ShizukuAccess.status())
+    }
+
+    fun setHudOpacity(value: Float) = updateHud { copy(opacity = value) }
+
+    fun setHudScale(value: Float) = updateHud { copy(scale = value) }
+
+    fun setHudMetrics(
+        showFps: Boolean? = null,
+        showTemperature: Boolean? = null,
+        showMemory: Boolean? = null
+    ) = updateHud {
+        copy(
+            showFps = showFps ?: this.showFps,
+            showTemperature = showTemperature ?: this.showTemperature,
+            showMemory = showMemory ?: this.showMemory
+        )
+    }
+
+    private fun updateHud(change: OverlayConfig.() -> OverlayConfig) {
+        val config = change(_uiState.value.overlayConfig)
+        OverlayPreferences.write(app, config)
+        _uiState.value = _uiState.value.copy(
+            overlayConfig = config,
+            status = "Preferencias del HUD guardadas"
+        )
     }
 
     fun requestShizukuPermission() {
@@ -71,9 +100,9 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun setAnimations(instant: Boolean) {
-        if (!_uiState.value.secureSettingsGranted) {
+        if (!_uiState.value.secureSettingsGranted && !_uiState.value.shizuku.permissionGranted) {
             _uiState.value = _uiState.value.copy(
-                status = "Concede WRITE_SECURE_SETTINGS antes de cambiar animaciones"
+                status = "Vincula Shizuku para cambiar animaciones sin computadora"
             )
             return
         }

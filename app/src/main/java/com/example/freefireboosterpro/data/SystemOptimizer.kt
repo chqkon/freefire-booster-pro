@@ -4,88 +4,113 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
+import com.example.freefireboosterpro.shizuku.ShizukuAccess
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.IOException
+import rikka.shizuku.Shizuku
+import java.util.concurrent.TimeUnit
 
 sealed interface OptimizerResult {
     data class Success(val message: String) : OptimizerResult
     data class Failure(val message: String) : OptimizerResult
 }
 
-/** Acceso aislado a APIs del sistema. No guarda referencias a Activity ni a Views. */
+/** Operaciones del sistema aisladas de Compose y ejecutadas sin Runtime.exec. */
 class SystemOptimizer(context: Context) {
     private val appContext = context.applicationContext
 
     fun hasWriteSecureSettings(): Boolean =
         appContext.checkSelfPermission(WRITE_SECURE_SETTINGS) == PackageManager.PERMISSION_GRANTED
 
+    fun canUseShizuku(): Boolean = ShizukuAccess.status().permissionGranted
+
     suspend fun applyDensity(dpi: Int): OptimizerResult = withContext(Dispatchers.IO) {
         if (dpi !in DPI_RANGE) {
             return@withContext OptimizerResult.Failure("El DPI debe estar entre 360 y 650")
         }
-
-        try {
-            // Argumentos separados: no se construye una línea de shell concatenada.
-            val process = Runtime.getRuntime().exec(arrayOf("wm", "density", dpi.toString()))
-            val finished = process.waitFor(COMMAND_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
-            if (!finished) {
-                process.destroyForcibly()
-                return@withContext OptimizerResult.Failure("El comando DPI agotó el tiempo de espera")
-            }
-            if (process.exitValue() == 0) {
-                OptimizerResult.Success("Densidad aplicada: $dpi dpi")
-            } else {
-                OptimizerResult.Failure("Android rechazó wm density; requiere shell autorizado o root")
-            }
-        } catch (error: SecurityException) {
-            OptimizerResult.Failure("Permiso insuficiente para cambiar la densidad")
-        } catch (error: IOException) {
-            OptimizerResult.Failure("No se pudo ejecutar wm density")
-        } catch (error: InterruptedException) {
-            Thread.currentThread().interrupt()
-            OptimizerResult.Failure("La operación DPI fue cancelada")
-        }
+        runShizukuCommand("wm", "density", dpi.toString()).toUserResult(
+            success = "Densidad aplicada: $dpi dpi",
+            failure = "No se pudo aplicar DPI; autoriza Shizuku primero"
+        )
     }
 
     suspend fun setAnimationScales(instant: Boolean): OptimizerResult = withContext(Dispatchers.IO) {
-        if (!hasWriteSecureSettings()) {
-            return@withContext OptimizerResult.Failure("Concede WRITE_SECURE_SETTINGS mediante ADB y vuelve a comprobar")
+        val scale = if (instant) "0.0" else "0.5"
+        val shizuku = ShizukuAccess.status()
+        if (shizuku.permissionGranted) {
+            val keys = listOf(
+                Settings.Global.WINDOW_ANIMATION_SCALE,
+                Settings.Global.TRANSITION_ANIMATION_SCALE,
+                Settings.Global.ANIMATOR_DURATION_SCALE
+            )
+            for (key in keys) {
+                val result = runShizukuCommand("settings", "put", "global", key, scale)
+                if (result.exitCode != 0) {
+                    return@withContext OptimizerResult.Failure("Shizuku rechazó el ajuste de animación")
+                }
+            }
+            return@withContext OptimizerResult.Success("Animaciones configuradas a ${scale}x mediante Shizuku")
         }
 
-        val scale = if (instant) 0.0f else 0.5f
+        if (!hasWriteSecureSettings()) {
+            return@withContext OptimizerResult.Failure("Vincula Shizuku para cambiar animaciones sin computadora")
+        }
+
+        val value = scale.toFloat()
         val keys = arrayOf(
             Settings.Global.WINDOW_ANIMATION_SCALE,
             Settings.Global.TRANSITION_ANIMATION_SCALE,
             Settings.Global.ANIMATOR_DURATION_SCALE
         )
-
-        try {
-            val allWritten = keys.all { key ->
-                Settings.Global.putFloat(appContext.contentResolver, key, scale)
-            }
-            if (allWritten) OptimizerResult.Success("Animaciones configuradas a ${scale}x")
-            else OptimizerResult.Failure("Android no confirmó uno o más cambios")
-        } catch (error: SecurityException) {
-            OptimizerResult.Failure("WRITE_SECURE_SETTINGS ya no está concedido")
-        }
+        val allWritten = keys.all { Settings.Global.putFloat(appContext.contentResolver, it, value) }
+        if (allWritten) OptimizerResult.Success("Animaciones configuradas a ${scale}x")
+        else OptimizerResult.Failure("Android no confirmó uno o más cambios")
     }
 
+    /** Solicita a Android que cierre procesos de fondo; requiere Shizuku autorizado. */
     suspend fun requestMemoryTrim(): OptimizerResult = withContext(Dispatchers.IO) {
+        if (ShizukuAccess.status().permissionGranted) {
+            return@withContext runShizukuCommand("am", "kill-all").toUserResult(
+                success = "Procesos en segundo plano solicitados para cierre",
+                failure = "Android rechazó el cierre de procesos"
+            )
+        }
+
         val manager = appContext.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
             ?: return@withContext OptimizerResult.Failure("ActivityManager no disponible")
-
-        try {
-            // Android limita qué procesos puede finalizar una app de terceros.
+        runCatching {
             manager.killBackgroundProcesses(appContext.packageName)
             val memoryInfo = ActivityManager.MemoryInfo()
             manager.getMemoryInfo(memoryInfo)
-            val availableMb = memoryInfo.availMem / BYTES_PER_MB
-            OptimizerResult.Success("Solicitud de limpieza enviada · RAM libre: ${availableMb} MB")
-        } catch (error: SecurityException) {
-            OptimizerResult.Failure("El sistema rechazó la limpieza de procesos")
+            OptimizerResult.Success("Limpieza limitada · RAM libre: ${memoryInfo.availMem / BYTES_PER_MB} MB")
+        }.getOrElse { OptimizerResult.Failure("Vincula Shizuku para limpiar procesos de otras apps") }
+    }
+
+    private fun runShizukuCommand(vararg command: String): CommandResult {
+        val status = ShizukuAccess.status()
+        if (!status.available) return CommandResult(-2, "Shizuku no está activo")
+        if (!status.permissionGranted) return CommandResult(-3, "Permiso Shizuku pendiente")
+
+        return try {
+            val process = Shizuku.newProcess(command, null, null)
+            val finished = process.waitFor(COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            if (!finished) {
+                process.destroy()
+                CommandResult(-4, "Tiempo de espera agotado")
+            } else {
+                val error = process.errorStream.bufferedReader().use { it.readText() }.trim()
+                CommandResult(process.exitValue(), error)
+            }
+        } catch (error: Exception) {
+            CommandResult(-5, error.message.orEmpty())
         }
     }
+
+    private fun CommandResult.toUserResult(success: String, failure: String): OptimizerResult =
+        if (exitCode == 0) OptimizerResult.Success(success)
+        else OptimizerResult.Failure(if (output.isBlank()) failure else "$failure: $output")
+
+    private data class CommandResult(val exitCode: Int, val output: String)
 
     companion object {
         private const val WRITE_SECURE_SETTINGS = "android.permission.WRITE_SECURE_SETTINGS"
