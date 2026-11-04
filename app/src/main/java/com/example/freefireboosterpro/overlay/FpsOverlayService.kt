@@ -23,7 +23,6 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import androidx.core.app.NotificationCompat
-import com.example.freefireboosterpro.R
 import kotlin.math.roundToInt
 
 /**
@@ -40,7 +39,7 @@ class FpsOverlayService : Service() {
     private var lastSampleMs = 0L
     private var batteryTempC = 0f
     private var fps = 0
-    private var frameCallback: Choreographer.FrameCallback? = null
+    private lateinit var frameCallback: Choreographer.FrameCallback
 
     private val telemetryRunnable = object : Runnable {
         override fun run() {
@@ -146,8 +145,9 @@ class FpsOverlayService : Service() {
     }
 
     override fun onDestroy() {
-        frameCallback?.let(choreographer::removeFrameCallback)
-        frameCallback = null
+        if (::frameCallback.isInitialized) {
+            choreographer.removeFrameCallback(frameCallback)
+        }
         handler.removeCallbacksAndMessages(null)
         if (::hudView.isInitialized && hudView.isAttachedToWindow) {
             runCatching { windowManager.removeView(hudView) }
@@ -163,6 +163,11 @@ class FpsOverlayService : Service() {
         private val onMove: (Int, Int) -> Unit
     ) : View(context) {
         private val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.argb(220, 15, 15, 18) }
+        private val accentPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(255, 42, 95) }
+        private val labelPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.LTGRAY
+            textSize = 9f * resources.displayMetrics.scaledDensity
+        }
         private val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE
             textSize = 12f * resources.displayMetrics.scaledDensity
@@ -170,7 +175,7 @@ class FpsOverlayService : Service() {
         }
         private val valuePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.rgb(0, 230, 255)
-            textSize = 13f * resources.displayMetrics.scaledDensity
+            textSize = 15f * resources.displayMetrics.scaledDensity
             isFakeBoldText = true
         }
         private val rect = RectF()
@@ -195,17 +200,21 @@ class FpsOverlayService : Service() {
         }
 
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-            setMeasuredDimension(dp(190), dp(74))
+            setMeasuredDimension(dp(230), dp(88))
         }
 
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
             rect.set(0f, 0f, width.toFloat(), height.toFloat())
             canvas.drawRoundRect(rect, dp(12).toFloat(), dp(12).toFloat(), backgroundPaint)
-            canvas.drawText("FREEFIRE BOOSTER", dp(12).toFloat(), dp(22).toFloat(), titlePaint)
-            canvas.drawText("FPS ${if (fps > 0) fps else "--"}", dp(12).toFloat(), dp(48).toFloat(), valuePaint)
-            canvas.drawText("BAT ${if (temp > 0f) "%.1f°C".format(temp) else "--"}", dp(70).toFloat(), dp(48).toFloat(), valuePaint)
-            canvas.drawText("RAM ${memory}M", dp(135).toFloat(), dp(48).toFloat(), valuePaint)
+            canvas.drawRoundRect(0f, 0f, dp(5).toFloat(), height.toFloat(), dp(12).toFloat(), dp(12).toFloat(), accentPaint)
+            canvas.drawText("FREEFIRE BOOSTER  //  LIVE", dp(14).toFloat(), dp(21).toFloat(), titlePaint)
+            canvas.drawText("FPS", dp(14).toFloat(), dp(42).toFloat(), labelPaint)
+            canvas.drawText(if (fps > 0) fps.toString() else "--", dp(14).toFloat(), dp(67).toFloat(), valuePaint)
+            canvas.drawText("BAT", dp(86).toFloat(), dp(42).toFloat(), labelPaint)
+            canvas.drawText(if (temp > 0f) "%.1f°".format(temp) else "--", dp(86).toFloat(), dp(67).toFloat(), valuePaint)
+            canvas.drawText("RAM LIBRE", dp(155).toFloat(), dp(42).toFloat(), labelPaint)
+            canvas.drawText("${memory}M", dp(155).toFloat(), dp(67).toFloat(), valuePaint)
         }
 
         override fun onTouchEvent(event: MotionEvent): Boolean {

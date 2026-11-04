@@ -9,6 +9,8 @@ import androidx.lifecycle.viewModelScope
 import com.example.freefireboosterpro.data.OptimizerResult
 import com.example.freefireboosterpro.data.SystemOptimizer
 import com.example.freefireboosterpro.overlay.FpsOverlayService
+import com.example.freefireboosterpro.shizuku.ShizukuAccess
+import com.example.freefireboosterpro.shizuku.ShizukuStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +22,7 @@ data class BoosterUiState(
     val secureSettingsGranted: Boolean = false,
     val overlayPermissionGranted: Boolean = false,
     val overlayRunning: Boolean = false,
+    val shizuku: ShizukuStatus = ShizukuStatus(),
     val isBusy: Boolean = false,
     val status: String = "Listo para optimizar"
 )
@@ -38,8 +41,29 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
         _uiState.value = _uiState.value.copy(
             secureSettingsGranted = optimizer.hasWriteSecureSettings(),
             overlayPermissionGranted = Settings.canDrawOverlays(app),
-            overlayRunning = FpsOverlayService.isRunning()
+            overlayRunning = FpsOverlayService.isRunning(),
+            shizuku = ShizukuAccess.status()
         )
+    }
+
+    fun refreshShizuku() {
+        _uiState.value = _uiState.value.copy(shizuku = ShizukuAccess.status())
+    }
+
+    fun requestShizukuPermission() {
+        val status = ShizukuAccess.status()
+        when {
+            !status.available -> _uiState.value = _uiState.value.copy(
+                status = "Inicia Shizuku desde su aplicación oficial y vuelve a comprobar"
+            )
+            status.permissionGranted -> _uiState.value = _uiState.value.copy(
+                status = "Shizuku ya está autorizado"
+            )
+            else -> {
+                ShizukuAccess.requestPermission()
+                _uiState.value = _uiState.value.copy(status = "Aprueba el permiso en Shizuku")
+            }
+        }
     }
 
     fun applyDpi() {

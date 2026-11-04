@@ -1,5 +1,6 @@
 package com.example.freefireboosterpro.ui
 
+import com.example.freefireboosterpro.shizuku.ShizukuStatus
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,15 +57,25 @@ fun BoosterScreen(
     onAnimationsChanged: (Boolean) -> Unit,
     onBoost: () -> Unit,
     onToggleOverlay: () -> Unit,
-    onOpenOverlayPermission: () -> Unit
+    onOpenOverlayPermission: () -> Unit,
+    onRequestShizuku: () -> Unit,
+    onRefreshShizuku: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Black).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         item {
-            Text("FREEFIRE BOOSTER PRO", color = Crimson, fontSize = 24.sp, fontWeight = FontWeight.Black)
-            Text("Ajustes del sistema, sin modificar archivos del juego", color = Color.LightGray)
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF15151A)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text("FREEFIRE BOOSTER PRO", color = Crimson, fontSize = 24.sp, fontWeight = FontWeight.Black)
+                    Text("PERFORMANCE CORE  /  SYSTEM LINK", color = Cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("Ajustes del sistema, sin modificar archivos del juego", color = Color.LightGray, fontSize = 13.sp)
+                }
+            }
         }
         item {
             PermissionCard(
@@ -79,6 +90,14 @@ fun BoosterScreen(
                 enabled = !state.isBusy,
                 onToggle = onToggleOverlay,
                 onOpenPermission = onOpenOverlayPermission
+            )
+        }
+        item {
+            ShizukuCard(
+                shizuku = state.shizuku,
+                enabled = !state.isBusy,
+                onRequest = onRequestShizuku,
+                onRefresh = onRefreshShizuku
             )
         }
         item {
@@ -107,6 +126,30 @@ fun BoosterScreen(
                 color = Color.Gray,
                 fontSize = 12.sp
             )
+        }
+    }
+}
+
+@Composable
+private fun ShizukuCard(
+    shizuku: ShizukuStatus,
+    enabled: Boolean,
+    onRequest: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    BoosterCard {
+        Text("VINCULACIÓN SHIZUKU", color = Cyan, fontWeight = FontWeight.Bold)
+        Text(shizuku.mode, color = if (shizuku.permissionGranted) Cyan else Color.LightGray)
+        Text(
+            "Permiso opcional para APIs del sistema. No se solicita ni ejecuta nada sin tu aprobación.",
+            color = Color.Gray,
+            fontSize = 12.sp
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(onClick = onRequest, enabled = enabled && shizuku.available && !shizuku.permissionGranted) {
+                Text(if (shizuku.available) "Vincular" else "No disponible")
+            }
+            TextButton(onClick = onRefresh, enabled = enabled) { Text("Comprobar") }
         }
     }
 }

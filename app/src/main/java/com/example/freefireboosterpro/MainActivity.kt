@@ -11,12 +11,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.freefireboosterpro.ui.BoosterScreen
 import com.example.freefireboosterpro.ui.BoosterTheme
 import com.example.freefireboosterpro.ui.BoosterViewModel
+import com.example.freefireboosterpro.shizuku.ShizukuAccess
+import rikka.shizuku.Shizuku
 
 class MainActivity : ComponentActivity() {
     private val viewModel: BoosterViewModel by viewModels()
+    private val shizukuListener = Shizuku.OnRequestPermissionResultListener { requestCode, _ ->
+        if (requestCode == ShizukuAccess.REQUEST_CODE) viewModel.refreshShizuku()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Shizuku.addRequestPermissionResultListener(shizukuListener)
         setContent {
             val state = viewModel.uiState.collectAsStateWithLifecycle()
             BoosterTheme {
@@ -28,7 +34,9 @@ class MainActivity : ComponentActivity() {
                     onAnimationsChanged = viewModel::setAnimations,
                     onBoost = viewModel::requestMemoryTrim,
                     onToggleOverlay = viewModel::toggleOverlay,
-                    onOpenOverlayPermission = ::openOverlayPermission
+                    onOpenOverlayPermission = ::openOverlayPermission,
+                    onRequestShizuku = viewModel::requestShizukuPermission,
+                    onRefreshShizuku = viewModel::refreshShizuku
                 )
             }
         }
@@ -38,6 +46,11 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // El usuario puede volver de Ajustes/ADB con el permiso recién concedido.
         viewModel.refreshPermission()
+    }
+
+    override fun onDestroy() {
+        Shizuku.removeRequestPermissionResultListener(shizukuListener)
+        super.onDestroy()
     }
 
     private fun openOverlayPermission() {
