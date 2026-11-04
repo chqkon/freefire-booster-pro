@@ -18,6 +18,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+data class InstalledAppInfo(
+    val label: String,
+    val packageName: String
+)
+
 data class BoosterUiState(
     val dpi: Float = 420f,
     val instantAnimations: Boolean = false,
@@ -25,6 +30,7 @@ data class BoosterUiState(
     val overlayPermissionGranted: Boolean = false,
     val overlayRunning: Boolean = false,
     val overlayConfig: OverlayConfig = OverlayConfig(),
+    val installedApps: List<InstalledAppInfo> = emptyList(),
     val shizuku: ShizukuStatus = ShizukuStatus(),
     val isBusy: Boolean = false,
     val status: String = "Listo para optimizar"
@@ -35,6 +41,10 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private val optimizer = SystemOptimizer(application)
     private val _uiState = MutableStateFlow(BoosterUiState())
     val uiState: StateFlow<BoosterUiState> = _uiState.asStateFlow()
+
+    init {
+        refreshInstalledApps()
+    }
 
     fun setDpi(value: Float) {
         _uiState.value = _uiState.value.copy(dpi = value.coerceIn(360f, 650f))
@@ -52,6 +62,40 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     fun refreshShizuku() {
         _uiState.value = _uiState.value.copy(shizuku = ShizukuAccess.status())
+    }
+
+    fun refreshInstalledApps() {
+        viewModelScope.launch {
+            val apps = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                val launcherIntent = Intent(Intent.ACTION_MAIN).apply {
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                }
+                app.packageManager.queryIntentActivities(launcherIntent, 0)
+                    .asSequence()
+                    .map { resolveInfo ->
+                        InstalledAppInfo(
+                            label = resolveInfo.loadLabel(app.packageManager).toString(),
+                            packageName = resolveInfo.activityInfo.packageName
+                        )
+                    }
+                    .distinctBy { it.packageName }
+                    .sortedBy { it.label.lowercase() }
+                    .toList()
+            }
+            _uiState.value = _uiState.value.copy(installedApps = apps)
+        }
+    }
+
+    fun launchApp(packageName: String) {
+        val launchIntent = app.packageManager.getLaunchIntentForPackage(packageName)
+        if (launchIntent == null) {
+            _uiState.value = _uiState.value.copy(status = "No se encontró un lanzador para esa app")
+            return
+        }
+        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        app.startActivity(launchIntent)
+        val label = _uiState.value.installedApps.firstOrNull { it.packageName == packageName }?.label
+        _uiState.value = _uiState.value.copy(status = "Abriendo ${label ?: "aplicación"}")
     }
 
     fun setHudOpacity(value: Float) = updateHud { copy(opacity = value) }
@@ -150,15 +194,22 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isBusy = true, status = "Aplicando ajuste…")
-            val result = operation()
-            onSuccess(result)
-            _uiState.value = _uiState.value.copy(
-                isBusy = false,
-                status = when (result) {
-                    is OptimizerResult.Success -> result.message
-                    is OptimizerResult.Failure -> result.message
-                }
-            )
+            try {
+                val result = operation()
+                onSuccess(result)
+                _uiState.value = _uiState.value.copy(
+                    isBusy = false,
+                    status = when (result) {
+                        is OptimizerResult.Success -> result.message
+                        is OptimizerResult.Failure -> result.message
+                    }
+                )
+            } catch (error: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isBusy = false,
+                    status = "No se pudo aplicar el ajuste: ${error.message ?: "error inesperado"}"
+                )
+            }
         }
     }
 }

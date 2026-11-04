@@ -43,7 +43,7 @@ object ShizukuCommandRunner {
             Shizuku.bindUserService(args, connection)
             val service = withTimeout(BIND_TIMEOUT_MS) { connected.await() }
                 ?: return@withContext CommandResult(-4, "No se pudo enlazar el UserService")
-            val encoded = service.execute(command)
+            val encoded = withTimeout(BIND_TIMEOUT_MS) { service.execute(command) }
             val split = encoded.indexOf('\n')
             val exitCode = if (split >= 0) encoded.substring(0, split).toIntOrNull() ?: -1 else -1
             val output = if (split >= 0) encoded.substring(split + 1) else encoded

@@ -31,6 +31,8 @@ class MainActivity : ComponentActivity() {
                     onDpiChanged = viewModel::setDpi,
                     onRefreshPermission = viewModel::refreshPermission,
                     onOpenDeveloperOptions = ::openDeveloperOptions,
+                    onRefreshApps = viewModel::refreshInstalledApps,
+                    onLaunchApp = viewModel::launchApp,
                     onApplyDpi = viewModel::applyDpi,
                     onAnimationsChanged = viewModel::setAnimations,
                     onBoost = viewModel::requestMemoryTrim,
@@ -56,6 +58,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // El usuario puede volver de Ajustes/ADB con el permiso recién concedido.
         viewModel.refreshPermission()
+        viewModel.refreshInstalledApps()
     }
 
     override fun onDestroy() {

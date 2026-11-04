@@ -11,12 +11,12 @@ class ShizukuCommandService() : IShizukuCommandService.Stub() {
 
     override fun execute(command: Array<String>): String {
         return try {
-            val process = Runtime.getRuntime().exec(command)
+            val process = ProcessBuilder(command.toList())
+                .redirectErrorStream(true)
+                .start()
             val stdout = process.inputStream.bufferedReader().use { it.readText() }.trim()
-            val stderr = process.errorStream.bufferedReader().use { it.readText() }.trim()
             val exitCode = process.waitFor()
-            val output = if (stderr.isNotBlank()) stderr else stdout
-            "$exitCode\n$output"
+            "$exitCode\n$stdout"
         } catch (error: Exception) {
             "-1\n${error.message.orEmpty()}"
         }
