@@ -5,9 +5,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.provider.Settings
 import com.example.freefireboosterpro.shizuku.ShizukuAccess
+import com.example.freefireboosterpro.shizuku.ShizukuCommandRunner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import rikka.shizuku.Shizuku
 import java.util.concurrent.TimeUnit
 
 sealed interface OptimizerResult {
@@ -86,24 +86,9 @@ class SystemOptimizer(context: Context) {
         }.getOrElse { OptimizerResult.Failure("Vincula Shizuku para limpiar procesos de otras apps") }
     }
 
-    private fun runShizukuCommand(vararg command: String): CommandResult {
-        val status = ShizukuAccess.status()
-        if (!status.available) return CommandResult(-2, "Shizuku no está activo")
-        if (!status.permissionGranted) return CommandResult(-3, "Permiso Shizuku pendiente")
-
-        return try {
-            val process = Shizuku.newProcess(command, null, null)
-            val finished = process.waitFor(COMMAND_TIMEOUT_MS, TimeUnit.MILLISECONDS)
-            if (!finished) {
-                process.destroy()
-                CommandResult(-4, "Tiempo de espera agotado")
-            } else {
-                val error = process.errorStream.bufferedReader().use { it.readText() }.trim()
-                CommandResult(process.exitValue(), error)
-            }
-        } catch (error: Exception) {
-            CommandResult(-5, error.message.orEmpty())
-        }
+    private suspend fun runShizukuCommand(vararg command: String): CommandResult {
+        val result = ShizukuCommandRunner.execute(command)
+        return CommandResult(result.exitCode, result.output)
     }
 
     private fun CommandResult.toUserResult(success: String, failure: String): OptimizerResult =
