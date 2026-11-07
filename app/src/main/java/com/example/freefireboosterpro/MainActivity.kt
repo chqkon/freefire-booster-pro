@@ -33,6 +33,7 @@ class MainActivity : ComponentActivity() {
                     onOpenDeveloperOptions = ::openDeveloperOptions,
                     onRefreshApps = viewModel::refreshInstalledApps,
                     onLaunchApp = viewModel::launchApp,
+                    onOpenUsageAccess = ::openUsageAccess,
                     onApplyDpi = viewModel::applyDpi,
                     onAnimationsChanged = viewModel::setAnimations,
                     onBoost = viewModel::requestMemoryTrim,
@@ -59,6 +60,7 @@ class MainActivity : ComponentActivity() {
         // El usuario puede volver de Ajustes/ADB con el permiso recién concedido.
         viewModel.refreshPermission()
         viewModel.refreshInstalledApps()
+        viewModel.restoreGameMode()
     }
 
     override fun onDestroy() {
@@ -77,5 +79,9 @@ class MainActivity : ComponentActivity() {
 
     private fun openDeveloperOptions() {
         startActivity(Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
+    }
+
+    private fun openUsageAccess() {
+        startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
     }
 }

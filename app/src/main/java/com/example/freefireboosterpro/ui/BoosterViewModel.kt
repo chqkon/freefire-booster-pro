@@ -1,12 +1,15 @@
 package com.example.freefireboosterpro.ui
 
 import android.app.Application
+import android.app.AppOpsManager
 import android.content.Intent
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.freefireboosterpro.data.OptimizerResult
+import com.example.freefireboosterpro.data.GameModeSnapshot
+import com.example.freefireboosterpro.game.GameModeMonitorService
 import com.example.freefireboosterpro.data.SystemOptimizer
 import com.example.freefireboosterpro.overlay.FpsOverlayService
 import com.example.freefireboosterpro.overlay.OverlayConfig
@@ -17,6 +20,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 data class InstalledAppInfo(
     val label: String,
@@ -31,6 +35,9 @@ data class BoosterUiState(
     val overlayRunning: Boolean = false,
     val overlayConfig: OverlayConfig = OverlayConfig(),
     val installedApps: List<InstalledAppInfo> = emptyList(),
+    val gameModeActive: Boolean = false,
+    val launchingAppLabel: String? = null,
+    val usageAccessGranted: Boolean = false,
     val shizuku: ShizukuStatus = ShizukuStatus(),
     val isBusy: Boolean = false,
     val status: String = "Listo para optimizar"
@@ -41,6 +48,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     private val optimizer = SystemOptimizer(application)
     private val _uiState = MutableStateFlow(BoosterUiState())
     val uiState: StateFlow<BoosterUiState> = _uiState.asStateFlow()
+    private var gameModeSnapshot: GameModeSnapshot? = null
 
     init {
         refreshInstalledApps()
@@ -56,6 +64,7 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             overlayPermissionGranted = Settings.canDrawOverlays(app),
             overlayRunning = FpsOverlayService.isRunning(),
             overlayConfig = OverlayPreferences.read(app),
+            usageAccessGranted = hasUsageAccess(),
             shizuku = ShizukuAccess.status()
         )
     }
@@ -92,10 +101,64 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
             _uiState.value = _uiState.value.copy(status = "No se encontró un lanzador para esa app")
             return
         }
-        launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        app.startActivity(launchIntent)
         val label = _uiState.value.installedApps.firstOrNull { it.packageName == packageName }?.label
-        _uiState.value = _uiState.value.copy(status = "Abriendo ${label ?: "aplicación"}")
+        viewModelScope.launch {
+            val snapshot = optimizer.captureAnimationScales()
+            val cleanup = optimizer.requestMemoryTrim()
+            val mode = optimizer.setGameMode(true, snapshot)
+            gameModeSnapshot = snapshot
+            _uiState.value = _uiState.value.copy(
+                launchingAppLabel = label ?: "aplicación",
+                gameModeActive = mode is OptimizerResult.Success,
+                status = when (cleanup) {
+                    is OptimizerResult.Success -> "Limpiando memoria y activando modo juego…"
+                    is OptimizerResult.Failure -> "Activando modo juego…"
+                }
+            )
+            delay(850L)
+            if (mode is OptimizerResult.Success && snapshot != null && hasUsageAccess()) {
+                ContextCompat.startForegroundService(
+                    app,
+                    Intent(app, GameModeMonitorService::class.java).apply {
+                        putExtra(GameModeMonitorService.EXTRA_TARGET, packageName)
+                        putExtra(GameModeMonitorService.EXTRA_WINDOW, snapshot.window)
+                        putExtra(GameModeMonitorService.EXTRA_TRANSITION, snapshot.transition)
+                        putExtra(GameModeMonitorService.EXTRA_ANIMATOR, snapshot.animator)
+                    }
+                )
+            }
+            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            app.startActivity(launchIntent)
+            _uiState.value = _uiState.value.copy(
+                launchingAppLabel = null,
+                status = "Modo juego activo para ${label ?: "la aplicación"}"
+            )
+        }
+    }
+
+    fun restoreGameMode() {
+        if (!_uiState.value.gameModeActive) return
+        viewModelScope.launch {
+            app.stopService(Intent(app, GameModeMonitorService::class.java))
+            val result = optimizer.setGameMode(false, gameModeSnapshot)
+            gameModeSnapshot = null
+            _uiState.value = _uiState.value.copy(
+                gameModeActive = false,
+                status = when (result) {
+                    is OptimizerResult.Success -> "Aplicación cerrada · ajustes restaurados"
+                    is OptimizerResult.Failure -> result.message
+                }
+            )
+        }
+    }
+
+    private fun hasUsageAccess(): Boolean {
+        val appOps = app.getSystemService(AppOpsManager::class.java)
+        return appOps.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            android.os.Process.myUid(),
+            app.packageName
+        ) == AppOpsManager.MODE_ALLOWED
     }
 
     fun setHudOpacity(value: Float) = updateHud { copy(opacity = value) }

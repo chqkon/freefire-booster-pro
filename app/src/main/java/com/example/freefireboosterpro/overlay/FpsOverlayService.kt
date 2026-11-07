@@ -187,6 +187,8 @@ class FpsOverlayService : Service() {
         private var downY = 0f
         private var initialX = 0
         private var initialY = 0
+        private var expanded = true
+        private var moved = false
 
         init {
             setPadding(18, 12, 18, 12)
@@ -205,7 +207,7 @@ class FpsOverlayService : Service() {
         }
 
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-            setMeasuredDimension(dp(230), dp(88))
+            setMeasuredDimension(dp(230), dp(if (expanded) 88 else 42))
         }
 
         override fun onDraw(canvas: Canvas) {
@@ -213,7 +215,13 @@ class FpsOverlayService : Service() {
             rect.set(0f, 0f, width.toFloat(), height.toFloat())
             canvas.drawRoundRect(rect, dp(12).toFloat(), dp(12).toFloat(), backgroundPaint)
             canvas.drawRoundRect(0f, 0f, dp(5).toFloat(), height.toFloat(), dp(12).toFloat(), dp(12).toFloat(), accentPaint)
-            canvas.drawText("FREEFIRE BOOSTER  //  LIVE", dp(14).toFloat(), dp(21).toFloat(), titlePaint)
+            canvas.drawText(
+                if (expanded) "FREEFIRE BOOSTER  //  LIVE" else "FPS ${if (fps > 0) fps else "--"}   ▲",
+                dp(14).toFloat(),
+                dp(25).toFloat(),
+                titlePaint
+            )
+            if (!expanded) return
             if (config.showFps) {
                 canvas.drawText("FPS", dp(14).toFloat(), dp(42).toFloat(), labelPaint)
                 canvas.drawText(if (fps > 0) fps.toString() else "--", dp(14).toFloat(), dp(67).toFloat(), valuePaint)
@@ -233,16 +241,26 @@ class FpsOverlayService : Service() {
                 MotionEvent.ACTION_DOWN -> {
                     downX = event.rawX
                     downY = event.rawY
+                    moved = false
                     val params = layoutParams as? WindowManager.LayoutParams
                     initialX = params?.x ?: 0
                     initialY = params?.y ?: 0
                     return true
                 }
                 MotionEvent.ACTION_MOVE -> {
+                    moved = true
                     onMove(
                         initialX + (event.rawX - downX).roundToInt(),
                         initialY + (event.rawY - downY).roundToInt()
                     )
+                    return true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (!moved) {
+                        expanded = !expanded
+                        requestLayout()
+                        invalidate()
+                    }
                     return true
                 }
             }

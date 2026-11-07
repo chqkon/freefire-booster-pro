@@ -8,7 +8,6 @@ import com.example.freefireboosterpro.shizuku.ShizukuAccess
 import com.example.freefireboosterpro.shizuku.ShizukuCommandRunner
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.concurrent.TimeUnit
 
 sealed interface OptimizerResult {
     data class Success(val message: String) : OptimizerResult
@@ -67,6 +66,49 @@ class SystemOptimizer(context: Context) {
         else OptimizerResult.Failure("Android no confirmó uno o más cambios")
     }
 
+    suspend fun captureAnimationScales(): GameModeSnapshot? = withContext(Dispatchers.IO) {
+        if (ShizukuAccess.status().permissionGranted) {
+            GameModeSnapshot(
+                window = readGlobalScale(Settings.Global.WINDOW_ANIMATION_SCALE),
+                transition = readGlobalScale(Settings.Global.TRANSITION_ANIMATION_SCALE),
+                animator = readGlobalScale(Settings.Global.ANIMATOR_DURATION_SCALE)
+            )
+        } else if (hasWriteSecureSettings()) {
+            GameModeSnapshot(
+                window = Settings.Global.getFloat(appContext.contentResolver, Settings.Global.WINDOW_ANIMATION_SCALE, 1f),
+                transition = Settings.Global.getFloat(appContext.contentResolver, Settings.Global.TRANSITION_ANIMATION_SCALE, 1f),
+                animator = Settings.Global.getFloat(appContext.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+            )
+        } else null
+    }
+
+    suspend fun setGameMode(enabled: Boolean, snapshot: GameModeSnapshot?): OptimizerResult = withContext(Dispatchers.IO) {
+        val values = if (enabled) listOf(0f, 0f, 0f) else listOf(
+            snapshot?.window ?: 1f,
+            snapshot?.transition ?: 1f,
+            snapshot?.animator ?: 1f
+        )
+        val keys = listOf(
+            Settings.Global.WINDOW_ANIMATION_SCALE,
+            Settings.Global.TRANSITION_ANIMATION_SCALE,
+            Settings.Global.ANIMATOR_DURATION_SCALE
+        )
+        if (ShizukuAccess.status().permissionGranted) {
+            keys.zip(values).forEach { (key, value) ->
+                if (runShizukuCommand("settings", "put", "global", key, value.toString()).exitCode != 0) {
+                    return@withContext OptimizerResult.Failure("No se pudo ${if (enabled) "activar" else "restaurar"} el modo juego")
+                }
+            }
+            return@withContext OptimizerResult.Success(if (enabled) "Modo juego activo" else "Ajustes restaurados")
+        }
+        if (!hasWriteSecureSettings()) return@withContext OptimizerResult.Failure("Autoriza Shizuku para usar el modo juego")
+        val written = keys.zip(values).all { (key, value) ->
+            Settings.Global.putFloat(appContext.contentResolver, key, value)
+        }
+        if (written) OptimizerResult.Success(if (enabled) "Modo juego activo" else "Ajustes restaurados")
+        else OptimizerResult.Failure("Android no confirmó el modo juego")
+    }
+
     /** Solicita a Android que cierre procesos de fondo; requiere Shizuku autorizado. */
     suspend fun requestMemoryTrim(): OptimizerResult = withContext(Dispatchers.IO) {
         if (ShizukuAccess.status().permissionGranted) {
@@ -91,6 +133,9 @@ class SystemOptimizer(context: Context) {
         return CommandResult(result.exitCode, result.output)
     }
 
+    private suspend fun readGlobalScale(key: String): Float =
+        runShizukuCommand("settings", "get", "global", key).output.trim().toFloatOrNull() ?: 1f
+
     private fun CommandResult.toUserResult(success: String, failure: String): OptimizerResult =
         if (exitCode == 0) OptimizerResult.Success(success)
         else OptimizerResult.Failure(if (output.isBlank()) failure else "$failure: $output")
@@ -99,7 +144,6 @@ class SystemOptimizer(context: Context) {
 
     companion object {
         private const val WRITE_SECURE_SETTINGS = "android.permission.WRITE_SECURE_SETTINGS"
-        private const val COMMAND_TIMEOUT_MS = 4_000L
         private const val BYTES_PER_MB = 1_048_576L
         val DPI_RANGE = 360..650
     }

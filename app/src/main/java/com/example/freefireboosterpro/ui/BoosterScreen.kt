@@ -19,6 +19,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -66,6 +67,7 @@ fun BoosterScreen(
     onOpenDeveloperOptions: () -> Unit,
     onRefreshApps: () -> Unit,
     onLaunchApp: (String) -> Unit,
+    onOpenUsageAccess: () -> Unit,
     onApplyDpi: () -> Unit,
     onAnimationsChanged: (Boolean) -> Unit,
     onBoost: () -> Unit,
@@ -98,6 +100,13 @@ fun BoosterScreen(
                 apps = state.installedApps,
                 onRefresh = onRefreshApps,
                 onLaunch = onLaunchApp
+            )
+        }
+        item {
+            GameModeCard(
+                active = state.gameModeActive,
+                usageAccessGranted = state.usageAccessGranted,
+                onOpenUsageAccess = onOpenUsageAccess
             )
         }
         item {
@@ -161,6 +170,23 @@ fun BoosterScreen(
                 fontSize = 12.sp
             )
         }
+    }
+
+    state.launchingAppLabel?.let { label ->
+        AlertDialog(
+            onDismissRequest = {},
+            containerColor = Surface,
+            title = { Text("PREPARANDO MODO JUEGO", color = Crimson, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+                    CircularProgressIndicator(color = Cyan)
+                    Spacer(Modifier.height(16.dp))
+                    Text("Limpiando memoria…", color = Color.White)
+                    Text("Optimizando animaciones para $label", color = Color.LightGray, fontSize = 12.sp)
+                }
+            },
+            confirmButton = {}
+        )
     }
 }
 
@@ -228,6 +254,39 @@ private fun AppLauncherCard(
             },
             confirmButton = { TextButton(onClick = { showAll = false }) { Text("Cerrar") } }
         )
+    }
+}
+
+@Composable
+private fun GameModeCard(
+    active: Boolean,
+    usageAccessGranted: Boolean,
+    onOpenUsageAccess: () -> Unit
+) {
+    BoosterCard {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("MODO JUEGO", color = Crimson, fontWeight = FontWeight.Bold)
+                Text(
+                    if (active) "Activo · se restaurará al volver al booster" else "Se activa al abrir una app desde el lanzador",
+                    color = Color.LightGray,
+                    fontSize = 12.sp
+                )
+            }
+            Text(if (active) "ON" else "READY", color = if (active) Cyan else Color.Gray, fontWeight = FontWeight.Bold)
+        }
+        if (!usageAccessGranted) {
+            Text(
+                "Para restaurar automáticamente al cerrar la app, Android requiere Acceso de uso.",
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
+            TextButton(onClick = onOpenUsageAccess) { Text("Conceder Acceso de uso") }
+        }
     }
 }
 
