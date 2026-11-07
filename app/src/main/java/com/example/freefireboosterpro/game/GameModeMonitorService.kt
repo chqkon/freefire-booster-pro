@@ -15,11 +15,17 @@ import android.os.Looper
 import androidx.core.app.NotificationCompat
 import com.example.freefireboosterpro.data.GameModeSnapshot
 import com.example.freefireboosterpro.data.SystemOptimizer
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /** Restaura el modo juego al detectar que la app objetivo dejó el primer plano. */
 class GameModeMonitorService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var optimizer: SystemOptimizer
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var targetPackage: String? = null
     private var snapshot: GameModeSnapshot? = null
     private var armedAt = 0L
@@ -30,10 +36,10 @@ class GameModeMonitorService : Service() {
             if (System.currentTimeMillis() - armedAt < ARM_DELAY_MS) {
                 handler.postDelayed(this, POLL_INTERVAL_MS)
             } else if (target != null && hasUsageAccess() && foregroundPackage() != target) {
-                Thread {
+                serviceScope.launch {
                     optimizer.setGameMode(false, snapshot)
                     stopSelf()
-                }.start()
+                }
             } else {
                 handler.postDelayed(this, POLL_INTERVAL_MS)
             }
@@ -105,6 +111,7 @@ class GameModeMonitorService : Service() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        serviceScope.cancel()
         super.onDestroy()
     }
 
