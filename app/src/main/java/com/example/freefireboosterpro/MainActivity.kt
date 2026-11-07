@@ -33,6 +33,7 @@ class MainActivity : ComponentActivity() {
                     onOpenDeveloperOptions = ::openDeveloperOptions,
                     onRefreshApps = viewModel::refreshInstalledApps,
                     onLaunchApp = viewModel::launchApp,
+                    onGraphicsProfileChanged = viewModel::setGraphicsProfile,
                     onOpenUsageAccess = ::openUsageAccess,
                     onApplyDpi = viewModel::applyDpi,
                     onAnimationsChanged = viewModel::setAnimations,

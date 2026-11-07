@@ -27,6 +27,8 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,6 +69,7 @@ fun BoosterScreen(
     onOpenDeveloperOptions: () -> Unit,
     onRefreshApps: () -> Unit,
     onLaunchApp: (String) -> Unit,
+    onGraphicsProfileChanged: (GraphicsProfile) -> Unit,
     onOpenUsageAccess: () -> Unit,
     onApplyDpi: () -> Unit,
     onAnimationsChanged: (Boolean) -> Unit,
@@ -79,6 +82,8 @@ fun BoosterScreen(
     onRequestShizuku: () -> Unit,
     onRefreshShizuku: () -> Unit
 ) {
+    var selectedTab by remember { mutableStateOf(0) }
+    val tabs = listOf("Inicio", "Game Space", "HUD", "Sistema")
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Black).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -96,70 +101,29 @@ fun BoosterScreen(
             }
         }
         item {
-            AppLauncherCard(
-                apps = state.installedApps,
-                onRefresh = onRefreshApps,
-                onLaunch = onLaunchApp
-            )
+            TabRow(selectedTabIndex = selectedTab, containerColor = Black, contentColor = Cyan) {
+                tabs.forEachIndexed { index, title ->
+                    Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text(title, fontSize = 12.sp) })
+                }
+            }
         }
-        item {
-            GameModeCard(
-                active = state.gameModeActive,
-                usageAccessGranted = state.usageAccessGranted,
-                onOpenUsageAccess = onOpenUsageAccess
-            )
+        if (selectedTab == 0 || selectedTab == 1) {
+            item { AppLauncherCard(state.installedApps, onRefreshApps, onLaunchApp) }
+            item { GameModeCard(state.gameModeActive, state.usageAccessGranted, onOpenUsageAccess) }
+            item { GraphicsProfileCard(state.graphicsProfile, onGraphicsProfileChanged) }
         }
-        item {
-            PermissionCard(
-                secureGranted = state.secureSettingsGranted,
-                shizukuGranted = state.shizuku.permissionGranted,
-                onRefresh = onRefreshPermission,
-                onOpenDeveloperOptions = onOpenDeveloperOptions
-            )
+        if (selectedTab == 1) {
+            item { DpiSliderCard(state.dpi, !state.isBusy, onDpiChanged, onApplyDpi) }
+            item { AnimationToggleCard((state.secureSettingsGranted || state.shizuku.permissionGranted) && !state.isBusy, state.instantAnimations, onAnimationsChanged) }
+            item { BoostButton(enabled = !state.isBusy, onClick = onBoost) }
         }
-        item {
-            HudCard(
-                overlayPermissionGranted = state.overlayPermissionGranted,
-                running = state.overlayRunning,
-                enabled = !state.isBusy,
-                onToggle = onToggleOverlay,
-                onOpenPermission = onOpenOverlayPermission
-            )
+        if (selectedTab == 2) {
+            item { HudCard(state.overlayPermissionGranted, state.overlayRunning, !state.isBusy, onToggleOverlay, onOpenOverlayPermission) }
+            item { HudSettingsCard(state.overlayConfig, !state.isBusy, onHudOpacityChanged, onHudScaleChanged, onHudMetricChanged) }
         }
-        item {
-            HudSettingsCard(
-                config = state.overlayConfig,
-                enabled = !state.isBusy,
-                onOpacityChanged = onHudOpacityChanged,
-                onScaleChanged = onHudScaleChanged,
-                onMetricChanged = onHudMetricChanged
-            )
-        }
-        item {
-            ShizukuCard(
-                shizuku = state.shizuku,
-                enabled = !state.isBusy,
-                onRequest = onRequestShizuku,
-                onRefresh = onRefreshShizuku
-            )
-        }
-        item {
-            DpiSliderCard(
-                dpi = state.dpi,
-                enabled = !state.isBusy,
-                onDpiChanged = onDpiChanged,
-                onApply = onApplyDpi
-            )
-        }
-        item {
-            AnimationToggleCard(
-                enabled = (state.secureSettingsGranted || state.shizuku.permissionGranted) && !state.isBusy,
-                instant = state.instantAnimations,
-                onToggle = onAnimationsChanged
-            )
-        }
-        item {
-            BoostButton(enabled = !state.isBusy, onClick = onBoost)
+        if (selectedTab == 3) {
+            item { ShizukuCard(state.shizuku, !state.isBusy, onRequestShizuku, onRefreshShizuku) }
+            item { PermissionCard(state.secureSettingsGranted, state.shizuku.permissionGranted, onRefreshPermission, onOpenDeveloperOptions) }
         }
         item {
             HorizontalDivider(color = Surface)
@@ -253,6 +217,34 @@ private fun AppLauncherCard(
                 }
             },
             confirmButton = { TextButton(onClick = { showAll = false }) { Text("Cerrar") } }
+        )
+    }
+}
+
+@Composable
+private fun GraphicsProfileCard(
+    selected: GraphicsProfile,
+    onSelected: (GraphicsProfile) -> Unit
+) {
+    BoosterCard {
+        Text("PERFIL VISUAL", color = Cyan, fontWeight = FontWeight.Bold)
+        Text("Elige una recomendación para tu sesión", color = Color.LightGray, fontSize = 12.sp)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(GraphicsProfile.values().toList()) { profile ->
+                Button(
+                    onClick = { onSelected(profile) },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (selected == profile) Crimson else Color(0xFF292934)
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) { Text(profile.title, fontSize = 12.sp) }
+            }
+        }
+        Text(selected.subtitle, color = Color.White, fontSize = 13.sp)
+        Text(
+            "Este perfil no cambia el motor interno ni archivos de Free Fire. Confirma la calidad y FPS desde los ajustes del propio juego.",
+            color = Color.Gray,
+            fontSize = 11.sp
         )
     }
 }

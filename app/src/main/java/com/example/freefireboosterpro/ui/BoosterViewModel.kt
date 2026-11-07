@@ -27,6 +27,12 @@ data class InstalledAppInfo(
     val packageName: String
 )
 
+enum class GraphicsProfile(val title: String, val subtitle: String) {
+    PERFORMANCE("Rendimiento", "Prioriza estabilidad y temperatura"),
+    BALANCED("Equilibrado", "Compromiso entre calidad y fluidez"),
+    QUALITY("Calidad", "Prioriza imagen y efectos visuales")
+}
+
 data class BoosterUiState(
     val dpi: Float = 420f,
     val instantAnimations: Boolean = false,
@@ -38,6 +44,7 @@ data class BoosterUiState(
     val gameModeActive: Boolean = false,
     val launchingAppLabel: String? = null,
     val usageAccessGranted: Boolean = false,
+    val graphicsProfile: GraphicsProfile = GraphicsProfile.BALANCED,
     val shizuku: ShizukuStatus = ShizukuStatus(),
     val isBusy: Boolean = false,
     val status: String = "Listo para optimizar"
@@ -56,6 +63,13 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
 
     fun setDpi(value: Float) {
         _uiState.value = _uiState.value.copy(dpi = value.coerceIn(360f, 650f))
+    }
+
+    fun setGraphicsProfile(profile: GraphicsProfile) {
+        _uiState.value = _uiState.value.copy(
+            graphicsProfile = profile,
+            status = "Perfil ${profile.title} seleccionado; confirma los gráficos dentro del juego"
+        )
     }
 
     fun refreshPermission() {

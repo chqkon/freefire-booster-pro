@@ -45,7 +45,11 @@ class SystemOptimizer(context: Context) {
             for (key in keys) {
                 val result = runShizukuCommand("settings", "put", "global", key, scale)
                 if (result.exitCode != 0) {
-                    return@withContext OptimizerResult.Failure("Shizuku rechazó el ajuste de animación")
+                    return@withContext OptimizerResult.Failure("Shizuku rechazó $key: ${result.output}")
+                }
+                val applied = readGlobalScale(key)
+                if (kotlin.math.abs(applied - scale.toFloat()) > 0.01f) {
+                    return@withContext OptimizerResult.Failure("Android no confirmó $key; valor leído: $applied")
                 }
             }
             return@withContext OptimizerResult.Success("Animaciones configuradas a ${scale}x mediante Shizuku")
@@ -62,7 +66,15 @@ class SystemOptimizer(context: Context) {
             Settings.Global.ANIMATOR_DURATION_SCALE
         )
         val allWritten = keys.all { Settings.Global.putFloat(appContext.contentResolver, it, value) }
-        if (allWritten) OptimizerResult.Success("Animaciones configuradas a ${scale}x")
+        if (allWritten) {
+            val verified = keys.all {
+                kotlin.math.abs(
+                    Settings.Global.getFloat(appContext.contentResolver, it, -1f) - value
+                ) <= 0.01f
+            }
+            if (verified) OptimizerResult.Success("Animaciones configuradas a ${scale}x y verificadas")
+            else OptimizerResult.Failure("Android no confirmó el valor ${scale}x")
+        }
         else OptimizerResult.Failure("Android no confirmó uno o más cambios")
     }
 
