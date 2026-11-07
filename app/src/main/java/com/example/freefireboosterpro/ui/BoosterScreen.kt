@@ -43,10 +43,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.shape.RoundedCornerShape
 
-private val Black = Color(0xFF0A0A0A)
-private val Surface = Color(0xFF1E1E1E)
-private val Crimson = Color(0xFFFF2A5F)
-private val Cyan = Color(0xFF00D9FF)
+private val Black = Color(0xFF080C11)
+private val Surface = Color(0xFF121A24)
+private val SurfaceRaised = Color(0xFF182331)
+private val Crimson = Color(0xFFB8F34A)
+private val Cyan = Color(0xFF65D8FF)
+private val Amber = Color(0xFFFFC857)
+private val TextPrimary = Color(0xFFF2F6FA)
+private val TextSecondary = Color(0xFF9AAABC)
 
 @Composable
 fun BoosterTheme(content: @Composable () -> Unit) {
@@ -55,7 +59,9 @@ fun BoosterTheme(content: @Composable () -> Unit) {
             background = Black,
             surface = Surface,
             primary = Crimson,
-            secondary = Cyan
+            secondary = Cyan,
+            onBackground = TextPrimary,
+            onSurface = TextPrimary
         ),
         content = content
     )
@@ -90,18 +96,27 @@ fun BoosterScreen(
     ) {
         item {
             Card(
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF15151A)),
-                modifier = Modifier.fillMaxWidth()
+                colors = CardDefaults.cardColors(containerColor = SurfaceRaised),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(28.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.08f)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("FREEFIRE BOOSTER PRO", color = Crimson, fontSize = 24.sp, fontWeight = FontWeight.Black)
-                    Text("PERFORMANCE CORE  /  SYSTEM LINK", color = Cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text("Ajustes del sistema, sin modificar archivos del juego", color = Color.LightGray, fontSize = 13.sp)
+                    Text("FREEFIRE", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
+                    Text("BOOSTER PRO", color = Crimson, fontSize = 28.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
+                    Text("GAME SPACE  •  PERFORMANCE CORE", color = Cyan, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                    Text("Controla tu sesión sin modificar archivos del juego", color = TextSecondary, fontSize = 13.sp)
                 }
             }
         }
         item {
-            TabRow(selectedTabIndex = selectedTab, containerColor = Black, contentColor = Cyan) {
+            TabRow(
+                selectedTabIndex = selectedTab,
+                containerColor = Surface,
+                contentColor = Crimson,
+                divider = {}
+            ) {
                 tabs.forEachIndexed { index, title ->
                     Tab(selected = selectedTab == index, onClick = { selectedTab = index }, text = { Text(title, fontSize = 12.sp) })
                 }
@@ -168,8 +183,8 @@ private fun AppLauncherCard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(Modifier.weight(1f)) {
-                Text("LANZADOR RÁPIDO", color = Cyan, fontWeight = FontWeight.Bold)
-                Text("Abre cualquier app compatible sin salir del booster", color = Color.LightGray, fontSize = 12.sp)
+                Text("LANZADOR RÁPIDO", color = TextPrimary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                Text("Abre una app y prepara tu sesión", color = TextSecondary, fontSize = 12.sp)
             }
             TextButton(onClick = onRefresh) { Text("Actualizar") }
         }
@@ -262,10 +277,10 @@ private fun GameModeCard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(Modifier.weight(1f)) {
-                Text("MODO JUEGO", color = Crimson, fontWeight = FontWeight.Bold)
+                Text("MODO JUEGO", color = Crimson, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 Text(
                     if (active) "Activo · se restaurará al volver al booster" else "Se activa al abrir una app desde el lanzador",
-                    color = Color.LightGray,
+                    color = TextSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -290,7 +305,7 @@ private fun ShizukuCard(
     onRefresh: () -> Unit
 ) {
     BoosterCard {
-        Text("VINCULACIÓN SHIZUKU", color = Cyan, fontWeight = FontWeight.Bold)
+            Text("VINCULACIÓN SHIZUKU", color = TextPrimary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         Text(shizuku.mode, color = if (shizuku.permissionGranted) Cyan else Color.LightGray)
         Text(
             "Permiso opcional para APIs del sistema. No se solicita ni ejecuta nada sin tu aprobación.",
@@ -321,7 +336,7 @@ private fun HudCard(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(Modifier.weight(1f)) {
-                Text("HUD DE RENDIMIENTO", color = Cyan, fontWeight = FontWeight.Bold)
+        Text("HUD DE RENDIMIENTO", color = TextPrimary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 Text(
                     when {
                         running -> "FPS · batería · RAM en tiempo real"
@@ -351,7 +366,7 @@ private fun HudSettingsCard(
     onMetricChanged: (String, Boolean) -> Unit
 ) {
     BoosterCard {
-        Text("PERSONALIZAR HUD", color = Cyan, fontWeight = FontWeight.Bold)
+        Text("PERSONALIZAR HUD", color = TextPrimary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         Text("Opacidad ${(config.opacity * 100).toInt()}%", color = Color.White)
         Slider(
             value = config.opacity,
@@ -394,7 +409,7 @@ private fun PermissionCard(
     onOpenDeveloperOptions: () -> Unit
 ) {
     BoosterCard {
-        Text("PERMISOS DEL SISTEMA", color = Cyan, fontWeight = FontWeight.Bold)
+        Text("PERMISOS DEL SISTEMA", color = TextPrimary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         Text(
             when {
                 shizukuGranted -> "Shizuku autorizado · sin computadora"
@@ -420,7 +435,7 @@ private fun DpiSliderCard(
     onApply: () -> Unit
 ) {
     BoosterCard {
-        Text("DENSIDAD / DPI", color = Cyan, fontWeight = FontWeight.Bold)
+        Text("DENSIDAD / DPI", color = TextPrimary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         Text("${dpi.toInt()} dpi", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Slider(
             value = dpi,
@@ -444,7 +459,7 @@ private fun AnimationToggleCard(enabled: Boolean, instant: Boolean, onToggle: (B
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column(Modifier.weight(1f)) {
-                Text("ANIMACIONES DEL SISTEMA", color = Cyan, fontWeight = FontWeight.Bold)
+                Text("ANIMACIONES DEL SISTEMA", color = TextPrimary, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
                 Text(if (instant) "Modo instantáneo · 0.0x" else "Modo rápido · 0.5x", color = Color.White)
             }
             Switch(checked = instant, onCheckedChange = onToggle, enabled = enabled)
@@ -470,8 +485,8 @@ private fun BoosterCard(content: @Composable () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = Surface),
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.06f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = 0.09f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(
             Modifier.padding(16.dp),
