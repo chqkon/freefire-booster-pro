@@ -51,7 +51,7 @@ class FpsOverlayService : Service() {
             frameCount = 0
             lastSampleMs = now
             batteryTempC = readBatteryTemperature()
-            hudView.update(fps, batteryTempC, availableMemoryMb(), OverlayPreferences.read(this@FpsOverlayService))
+            hudView.update(fps, batteryTempC, readBatteryLevel(), availableMemoryMb(), OverlayPreferences.read(this@FpsOverlayService))
             handler.postDelayed(this, TELEMETRY_INTERVAL_MS)
         }
     }
@@ -118,6 +118,13 @@ class FpsOverlayService : Service() {
         return (intent?.getIntExtra("temperature", 0) ?: 0) / 10f
     }
 
+    private fun readBatteryLevel(): Int {
+        val intent = registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+        val level = intent?.getIntExtra("level", -1) ?: -1
+        val scale = intent?.getIntExtra("scale", 100) ?: 100
+        return if (level >= 0 && scale > 0) (level * 100 / scale).coerceIn(0, 100) else 0
+    }
+
     private fun availableMemoryMb(): Long {
         val info = ActivityManager.MemoryInfo()
         getSystemService(ActivityManager::class.java).getMemoryInfo(info)
@@ -181,6 +188,7 @@ class FpsOverlayService : Service() {
         private val rect = RectF()
         private var fps = 0
         private var temp = 0f
+        private var battery = 0
         private var memory = 0L
         private var config = OverlayConfig()
         private var downX = 0f
@@ -195,9 +203,10 @@ class FpsOverlayService : Service() {
             setBackgroundColor(Color.TRANSPARENT)
         }
 
-        fun update(fps: Int, temperature: Float, availableMemory: Long, config: OverlayConfig) {
+        fun update(fps: Int, temperature: Float, batteryLevel: Int, availableMemory: Long, config: OverlayConfig) {
             this.fps = fps
             temp = temperature
+            battery = batteryLevel
             memory = availableMemory
             this.config = config
             alpha = config.opacity
@@ -207,7 +216,7 @@ class FpsOverlayService : Service() {
         }
 
         override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
-            setMeasuredDimension(dp(230), dp(if (expanded) 88 else 42))
+            setMeasuredDimension(dp(230), dp(if (expanded) 112 else 42))
         }
 
         override fun onDraw(canvas: Canvas) {
@@ -233,6 +242,14 @@ class FpsOverlayService : Service() {
             if (config.showMemory) {
                 canvas.drawText("RAM LIBRE", dp(155).toFloat(), dp(42).toFloat(), labelPaint)
                 canvas.drawText("${memory}M", dp(155).toFloat(), dp(67).toFloat(), valuePaint)
+            }
+            if (config.showFrameTime) {
+                canvas.drawText("FRAME TIME", dp(14).toFloat(), dp(91).toFloat(), labelPaint)
+                canvas.drawText(if (fps > 0) "%.1f ms".format(1000f / fps) else "--", dp(14).toFloat(), dp(106).toFloat(), valuePaint)
+            }
+            if (config.showBatteryLevel) {
+                canvas.drawText("BATERÍA", dp(155).toFloat(), dp(91).toFloat(), labelPaint)
+                canvas.drawText(if (battery > 0) "$battery%" else "--", dp(155).toFloat(), dp(106).toFloat(), valuePaint)
             }
         }
 

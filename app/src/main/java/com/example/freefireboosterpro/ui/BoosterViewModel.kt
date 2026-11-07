@@ -182,12 +182,16 @@ class BoosterViewModel(application: Application) : AndroidViewModel(application)
     fun setHudMetrics(
         showFps: Boolean? = null,
         showTemperature: Boolean? = null,
-        showMemory: Boolean? = null
+        showMemory: Boolean? = null,
+        showFrameTime: Boolean? = null,
+        showBatteryLevel: Boolean? = null
     ) = updateHud {
         copy(
             showFps = showFps ?: this.showFps,
             showTemperature = showTemperature ?: this.showTemperature,
-            showMemory = showMemory ?: this.showMemory
+            showMemory = showMemory ?: this.showMemory,
+            showFrameTime = showFrameTime ?: this.showFrameTime,
+            showBatteryLevel = showBatteryLevel ?: this.showBatteryLevel
         )
     }
 

@@ -7,7 +7,9 @@ data class OverlayConfig(
     val scale: Float = 1f,
     val showFps: Boolean = true,
     val showTemperature: Boolean = true,
-    val showMemory: Boolean = true
+    val showMemory: Boolean = true,
+    val showFrameTime: Boolean = false,
+    val showBatteryLevel: Boolean = false
 )
 
 object OverlayPreferences {
@@ -17,6 +19,8 @@ object OverlayPreferences {
     private const val SHOW_FPS = "show_fps"
     private const val SHOW_TEMP = "show_temperature"
     private const val SHOW_MEMORY = "show_memory"
+    private const val SHOW_FRAME_TIME = "show_frame_time"
+    private const val SHOW_BATTERY = "show_battery"
 
     fun read(context: Context): OverlayConfig {
         val prefs = context.getSharedPreferences(FILE, Context.MODE_PRIVATE)
@@ -25,7 +29,9 @@ object OverlayPreferences {
             scale = prefs.getFloat(SCALE, 1f),
             showFps = prefs.getBoolean(SHOW_FPS, true),
             showTemperature = prefs.getBoolean(SHOW_TEMP, true),
-            showMemory = prefs.getBoolean(SHOW_MEMORY, true)
+            showMemory = prefs.getBoolean(SHOW_MEMORY, true),
+            showFrameTime = prefs.getBoolean(SHOW_FRAME_TIME, false),
+            showBatteryLevel = prefs.getBoolean(SHOW_BATTERY, false)
         )
     }
 
@@ -36,6 +42,8 @@ object OverlayPreferences {
             .putBoolean(SHOW_FPS, config.showFps)
             .putBoolean(SHOW_TEMP, config.showTemperature)
             .putBoolean(SHOW_MEMORY, config.showMemory)
+            .putBoolean(SHOW_FRAME_TIME, config.showFrameTime)
+            .putBoolean(SHOW_BATTERY, config.showBatteryLevel)
             .apply()
     }
 }

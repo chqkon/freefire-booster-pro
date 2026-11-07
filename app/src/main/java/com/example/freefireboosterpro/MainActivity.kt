@@ -47,10 +47,13 @@ class MainActivity : ComponentActivity() {
                             "fps" -> viewModel.setHudMetrics(showFps = enabled)
                             "temperature" -> viewModel.setHudMetrics(showTemperature = enabled)
                             "memory" -> viewModel.setHudMetrics(showMemory = enabled)
+                            "frame_time" -> viewModel.setHudMetrics(showFrameTime = enabled)
+                            "battery" -> viewModel.setHudMetrics(showBatteryLevel = enabled)
                         }
                     },
                     onRequestShizuku = viewModel::requestShizukuPermission,
-                    onRefreshShizuku = viewModel::refreshShizuku
+                    onRefreshShizuku = viewModel::refreshShizuku,
+                    onOpenUpdates = ::openUpdates
                 )
             }
         }
@@ -84,5 +87,9 @@ class MainActivity : ComponentActivity() {
 
     private fun openUsageAccess() {
         startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+    }
+
+    private fun openUpdates() {
+        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/chqkon/freefire-booster-pro/releases")))
     }
 }
